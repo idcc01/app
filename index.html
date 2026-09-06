@@ -1,484 +1,268 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>NEXUS 科技 · 未来创新引擎</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+<meta name="format-detection" content="telephone=no,email=no,address=no" />
+<meta name="referrer" content="never" />
+<title>正在进入…</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+    background: linear-gradient(168deg, #0a0f1a 0%, #152238 42%, #0c1220 100%);
+    color: #f8fafc;
+    display: flex; align-items: center; justify-content: center;
+    min-height: 100vh; overflow: hidden; position: relative;
+  }
+  /* ── 初始加载态（探活中） ── */
+  .loading { text-align: center; }
+  .dot {
+    width: 44px; height: 44px; margin: 0 auto 18px; border-radius: 50%;
+    background: linear-gradient(145deg, #e9c877, #c9a24d);
+    box-shadow: 0 10px 32px rgba(201,162,77,.35);
+    animation: pulse 1s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100%{transform:scale(1);opacity:1} 50%{transform:scale(1.08);opacity:.85} }
+  .loading p { font-size: 15px; letter-spacing: .12em; color: rgba(248,250,252,.85); }
 
-    <!-- ============================================================
-         跳转逻辑：多域名随机选择 + 完整携带参数
-         ============================================================ -->
-    <script>
-        (function() {
-            // =========================================================
-            // ★★★ 在这里配置您的目标域名列表（至少1个，建议多个） ★★★
-            // 每次跳转时会从列表中随机选择一个域名
-            // 注意：以 https:// 开头，不要带尾部斜杠
-            // =========================================================
-            const TARGET_DOMAINS = [
-                "https://app.fcbhd.top", // 用户提供的域名
+  /* ── 浏览器引导遮罩（微信内且主站被封时显示） ── */
+  .guide { position: fixed; inset: 0; background: rgba(2,6,14,.94); display: none; z-index: 10; }
+  .guide.show { display: block; }
+  .arrow {
+    position: absolute; top: 8px; right: 14px; width: 88px; height: 88px;
+    animation: bob 1.2s ease-in-out infinite;
+  }
+  @keyframes bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+  .guide-body {
+    position: absolute; left: 0; right: 0; top: 128px;
+    padding: 0 30px; text-align: center;
+  }
+  .guide-title { font-size: 22px; font-weight: 800; letter-spacing: .06em; margin-bottom: 14px; }
+  .guide-title b { color: #f7c948; }
+  .step {
+    display: flex; align-items: center; gap: 12px; text-align: left;
+    background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12);
+    border-radius: 14px; padding: 14px 16px; margin: 12px auto 0; max-width: 340px;
+  }
+  .step .n {
+    flex: none; width: 28px; height: 28px; border-radius: 50%;
+    background: linear-gradient(145deg,#e9c877,#c9a24d); color: #1b1206;
+    font-weight: 800; font-size: 15px; display: flex; align-items: center; justify-content: center;
+  }
+  .step .txt { font-size: 15px; line-height: 1.5; color: #e8eefb; }
+  .step .txt em { color: #f7c948; font-style: normal; font-weight: 700; }
+  .hint { margin-top: 22px; font-size: 13px; color: rgba(248,250,252,.55); line-height: 1.6; }
+  .copybar {
+    margin: 18px auto 0; max-width: 340px;
+    display: flex; gap: 8px; align-items: stretch;
+  }
+  .copybar input {
+    flex: 1; min-width: 0; border: 1px solid rgba(255,255,255,.15);
+    background: rgba(255,255,255,.06); color: #cfe0ff; border-radius: 10px;
+    padding: 10px 12px; font-size: 12px; font-family: ui-monospace, Menlo, monospace;
+  }
+  .copybar button {
+    flex: none; border: none; border-radius: 10px; padding: 0 16px;
+    background: linear-gradient(145deg,#e9c877,#c9a24d); color: #1b1206;
+    font-weight: 700; font-size: 14px;
+  }
 
-            ];
-            // =========================================================
-
-            // 从列表中随机选择一个域名
-            const randomIndex = Math.floor(Math.random() * TARGET_DOMAINS.length);
-            const TARGET_DOMAIN = TARGET_DOMAINS[randomIndex];
-
-            // 获取当前 URL 的查询参数部分（例如 "?invite=xxx&site=xxx"）
-            const currentQuery = window.location.search;
-
-            // 检测是否为手机移动端 + 微信内置浏览器
-            const ua = navigator.userAgent || '';
-            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(ua);
-            const isWeChat = /MicroMessenger|WeChat/i.test(ua);
-            const isMobileWeChat = isMobile && isWeChat;
-
-            // 检查当前是否已经在目标域名上，避免无限循环
-            const currentHost = window.location.hostname;
-            const targetHost = new URL(TARGET_DOMAIN).hostname;
-            const isAlreadyOnTarget = (currentHost === targetHost);
-
-            // 满足条件则跳转，并携带原始所有参数
-            if (isMobileWeChat && !isAlreadyOnTarget) {
-                let redirectUrl = TARGET_DOMAIN;
-                if (currentQuery) {
-                    redirectUrl += currentQuery; // 原样带上所有参数
-                }
-                // 立即跳转（替换当前历史记录）
-                window.location.replace(redirectUrl);
-                throw new Error("Redirect to target domain in WeChat");
-            }
-        })();
-    </script>
-
-    <!-- Google Fonts & 现代字体 -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Inter', sans-serif;
-            background: #0a0c10;
-            color: #fff;
-            line-height: 1.5;
-            overflow-x: hidden;
-        }
-
-        html {
-            scroll-behavior: smooth;
-        }
-
-        .navbar {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            z-index: 1000;
-            backdrop-filter: blur(20px);
-            background: rgba(10, 12, 16, 0.75);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-            padding: 1rem 2rem;
-        }
-
-        .nav-container {
-            max-width: 1400px;
-            margin: 0 auto;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            flex-wrap: wrap;
-        }
-
-        .logo {
-            font-size: 1.8rem;
-            font-weight: 800;
-            background: linear-gradient(135deg, #FFFFFF 0%, #A0AEC0 100%);
-            -webkit-background-clip: text;
-            background-clip: text;
-            color: transparent;
-        }
-        .logo span {
-            font-weight: 400;
-            color: rgba(255, 255, 255, 0.7);
-        }
-
-        .nav-links {
-            display: flex;
-            gap: 2.5rem;
-            list-style: none;
-        }
-        .nav-links li {
-            cursor: pointer;
-            font-weight: 500;
-            color: #e2e8f0;
-            transition: 0.2s;
-            padding: 0.5rem 0;
-            border-bottom: 2px solid transparent;
-        }
-        .nav-links li:hover,
-        .nav-links li.active {
-            color: white;
-            border-bottom-color: #3b82f6;
-        }
-        .menu-toggle {
-            display: none;
-            font-size: 1.8rem;
-            cursor: pointer;
-            color: white;
-        }
-
-        .page {
-            display: none;
-            animation: fadeInUp 0.6s cubic-bezier(0.2, 0.9, 0.4, 1.1);
-        }
-        .page.active-page {
-            display: block;
-        }
-
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .container {
-            max-width: 1280px;
-            margin: 0 auto;
-            padding: 0 2rem;
-        }
-
-        section {
-            padding: 7rem 0 4rem;
-        }
-
-        footer {
-            background: #05070a;
-            border-top: 1px solid rgba(255, 255, 255, 0.05);
-            padding: 3rem 2rem 2rem;
-            text-align: center;
-            color: #94a3b8;
-            font-size: 0.9rem;
-        }
-        .footer-content {
-            max-width: 1280px;
-            margin: 0 auto;
-            display: flex;
-            justify-content: space-between;
-            flex-wrap: wrap;
-            gap: 2rem;
-        }
-        .footer-copyright {
-            margin-top: 2rem;
-            opacity: 0.6;
-        }
-
-        .card-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 2rem;
-            margin: 3rem 0;
-        }
-        .card {
-            background: rgba(20, 24, 32, 0.7);
-            backdrop-filter: blur(4px);
-            border-radius: 2rem;
-            padding: 1.8rem;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            transition: all 0.3s;
-        }
-        .card:hover {
-            transform: translateY(-8px);
-            background: rgba(30, 35, 48, 0.8);
-            border-color: rgba(59, 130, 246, 0.5);
-            box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.3);
-        }
-
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            background: linear-gradient(95deg, #3b82f6, #2563eb);
-            padding: 0.7rem 1.6rem;
-            border-radius: 40px;
-            font-weight: 600;
-            color: white;
-            border: none;
-            cursor: pointer;
-        }
-        .btn-outline {
-            background: transparent;
-            border: 1px solid rgba(255, 255, 255, 0.3);
-        }
-        .btn-outline:hover {
-            background: rgba(255, 255, 255, 0.1);
-            border-color: white;
-        }
-
-        .page1 .hero-bg {
-            background: radial-gradient(circle at 20% 30%, #0f172a, #020617);
-        }
-        .page2 .hero-bg {
-            background: radial-gradient(circle at 80% 10%, #0c1e2e, #030712);
-        }
-        .page3 .hero-bg {
-            background: radial-gradient(circle at 30% 70%, #132a1f, #020c0a);
-        }
-        .page4 .hero-bg {
-            background: radial-gradient(circle at 70% 80%, #2d1a11, #070500);
-        }
-        .page5 .hero-bg {
-            background: radial-gradient(circle at 40% 40%, #1e1b2f, #0a0a14);
-        }
-
-        .stat-number {
-            font-size: 2.8rem;
-            font-weight: 800;
-            background: linear-gradient(135deg, #fff, #60a5fa);
-            -webkit-background-clip: text;
-            background-clip: text;
-            color: transparent;
-        }
-
-        @media (max-width: 900px) {
-            .nav-links {
-                display: none;
-                width: 100%;
-                flex-direction: column;
-                align-items: center;
-                gap: 1rem;
-                padding: 1rem 0;
-                background: rgba(0, 0, 0, 0.9);
-                border-radius: 2rem;
-                margin-top: 1rem;
-            }
-            .nav-links.show {
-                display: flex;
-            }
-            .menu-toggle {
-                display: block;
-            }
-            .navbar {
-                padding: 1rem;
-            }
-            section {
-                padding: 6rem 0 3rem;
-            }
-            .container {
-                padding: 0 1.5rem;
-            }
-            h1 {
-                font-size: 2.2rem;
-            }
-        }
-
-        .badge {
-            background: rgba(59, 130, 246, 0.2);
-            padding: 0.2rem 1rem;
-            border-radius: 30px;
-            font-size: 0.8rem;
-            width: fit-content;
-            border: 1px solid rgba(59, 130, 246, 0.4);
-        }
-        h1 {
-            font-size: 3.5rem;
-            font-weight: 800;
-            letter-spacing: -0.02em;
-            line-height: 1.2;
-        }
-        @media (max-width: 700px) {
-            h1 {
-                font-size: 2.2rem;
-            }
-        }
-    </style>
+  /* ── 失败兜底（无可用主站域名且非微信，或探活异常） ── */
+  .fallback { display: none; text-align: center; padding: 0 28px; }
+  .fallback.show { display: block; }
+  .fallback .big { font-size: 40px; margin-bottom: 14px; }
+  .fallback p { font-size: 15px; color: rgba(248,250,252,.8); line-height: 1.6; }
+  .fallback button {
+    margin-top: 22px; border: none; border-radius: 999px; padding: 12px 34px;
+    background: linear-gradient(145deg,#e9c877,#c9a24d); color: #1b1206;
+    font-weight: 800; font-size: 16px;
+  }
+</style>
 </head>
 <body>
+  <!-- 探活中 -->
+  <div class="loading" id="loading">
+    <div class="dot"></div>
+    <p id="loadingText">正在进入，请稍候…</p>
+  </div>
 
-    <nav class="navbar">
-        <div class="nav-container">
-            <div class="logo">NEXUS<span>//TECH</span></div>
-            <div class="menu-toggle" id="mobile-menu">
-                <i class="fas fa-bars"></i>
-            </div>
-            <ul class="nav-links" id="nav-links">
-                <li data-page="1">AI 智慧引擎</li>
-                <li data-page="2">云创基石</li>
-                <li data-page="3">开发者工坊</li>
-                <li data-page="4">星火人文</li>
-                <li data-page="5">可信安全</li>
-            </ul>
-        </div>
-    </nav>
-
-    <!-- ===== 5个精美页面 ===== -->
-    <div id="page1" class="page page1">
-        <div class="hero-bg" style="min-height: 100vh; padding-top: 80px;">
-            <section>
-                <div class="container">
-                    <div class="badge">NEXUS NEO · 智能新纪元</div>
-                    <h1 style="margin-top: 1rem;">重塑无限可能<br>生成式AI 平台</h1>
-                    <p style="font-size: 1.2rem; max-width: 600px; margin: 1.5rem 0 2rem;">行业领先的大模型＋全栈式机器学习基础设施。</p>
-                    <button class="btn">探索AI方案 <i class="fas fa-arrow-right"></i></button>
-                </div>
-            </section>
-            <div class="container">
-                <div class="card-grid">
-                    <div class="card"><i class="fas fa-brain" style="font-size: 2rem; color: #3b82f6;"></i><h3>多模态感知</h3><p>文本/图像/视频联合推理。</p></div>
-                    <div class="card"><i class="fas fa-chart-line" style="font-size: 2rem; color: #3b82f6;"></i><h3>实时训练引擎</h3><p>万亿参数分布式训练。</p></div>
-                    <div class="card"><i class="fas fa-shield-alt" style="font-size: 2rem; color: #3b82f6;"></i><h3>安全合规AI</h3><p>企业级数据隔离。</p></div>
-                </div>
-                <div style="background: linear-gradient(120deg, #1e293b, #0f172a); border-radius: 2rem; padding: 2rem; text-align: center;">
-                    <p style="font-size: 1.8rem; font-weight: 600;">98%</p>
-                    <p>客户推理准确率提升</p>
-                </div>
-            </div>
-        </div>
+  <!-- 浏览器引导（微信内 + 主站被封） -->
+  <div class="guide" id="guide">
+    <svg class="arrow" viewBox="0 0 100 100" fill="none">
+      <path d="M50 84 L50 26" stroke="#f7c948" stroke-width="8" stroke-linecap="round"/>
+      <path d="M28 46 L50 24 L72 46" stroke="#f7c948" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <div class="guide-body">
+      <div class="guide-title">请点击右上角 <b>· · ·</b></div>
+      <div class="step">
+        <div class="n">1</div>
+        <div class="txt">点击右上角的 <em>···</em> 菜单按钮</div>
+      </div>
+      <div class="step">
+        <div class="n">2</div>
+        <div class="txt">选择 <em>在浏览器打开</em>（Safari / 默认浏览器）</div>
+      </div>
+      <div class="step">
+        <div class="n">3</div>
+        <div class="txt">在浏览器中即可正常进入使用</div>
+      </div>
+      <div class="hint">当前页面在微信中暂时无法访问，<br/>用浏览器打开后会自动登录，进度与账号不丢失。</div>
+      <div class="copybar">
+        <input id="copyUrl" readonly />
+        <button id="copyBtn">复制</button>
+      </div>
     </div>
+  </div>
 
-    <div id="page2" class="page page2">
-        <div class="hero-bg" style="min-height: 100vh; padding-top: 80px;">
-            <section>
-                <div class="container">
-                    <div class="badge">全球分布式云</div>
-                    <h1>云原生基座<br>无界算力矩阵</h1>
-                    <p style="font-size: 1.2rem;">覆盖31个地理区域，毫秒级响应。</p>
-                    <button class="btn btn-outline">即刻部署 <i class="fas fa-cloud-arrow-up"></i></button>
-                </div>
-            </section>
-            <div class="container">
-                <div class="card-grid">
-                    <div class="card"><i class="fas fa-database"></i><h3>EB级数据仓库</h3></div>
-                    <div class="card"><i class="fas fa-globe"></i><h3>全球加速网络</h3></div>
-                    <div class="card"><i class="fas fa-server"></i><h3>裸金属性能</h3></div>
-                </div>
-                <div style="display: flex; gap: 2rem; flex-wrap: wrap;">
-                    <div><span class="stat-number">99.99%</span><br>可用性SLA</div>
-                    <div><span class="stat-number">＜50ms</span><br>全球平均时延</div>
-                </div>
-            </div>
-        </div>
-    </div>
+  <!-- 兜底：非微信但仍打不开时，给一个手动进入按钮 -->
+  <div class="fallback" id="fallback">
+    <div class="big">🔗</div>
+    <p id="fallbackText">点击下方按钮进入</p>
+    <button id="enterBtn">立即进入</button>
+  </div>
 
-    <div id="page3" class="page page3">
-        <div class="hero-bg" style="min-height: 100vh; padding-top: 80px;">
-            <section>
-                <div class="container">
-                    <div class="badge">OPEN · 创造者生态</div>
-                    <h1>开发者优先<br>从API到生产环境</h1>
-                    <button class="btn"><i class="fab fa-github"></i> 开始构建</button>
-                </div>
-            </section>
-            <div class="container">
-                <div class="card-grid">
-                    <div class="card"><i class="fab fa-python"></i><h3>Python SDK</h3></div>
-                    <div class="card"><i class="fab fa-js"></i><h3>Node.js / TS</h3></div>
-                    <div class="card"><i class="fas fa-terminal"></i><h3>CLI 专家模式</h3></div>
-                </div>
-            </div>
-        </div>
-    </div>
+<script>
+(function () {
+  "use strict";
 
-    <div id="page4" class="page page4">
-        <div class="hero-bg" style="min-height: 100vh; padding-top: 80px;">
-            <section>
-                <div class="container">
-                    <div class="badge">驱动向善科技</div>
-                    <h1>创新不息 以人为本</h1>
-                    <button class="btn-outline btn">加入我们 <i class="fas fa-rocket"></i></button>
-                </div>
-            </section>
-            <div class="container">
-                <div class="card-grid">
-                    <div class="card"><i class="fas fa-leaf"></i><h3>碳中和承诺</h3></div>
-                    <div class="card"><i class="fas fa-graduation-cap"></i><h3>AI for Good</h3></div>
-                    <div class="card"><i class="fas fa-hand-sparkles"></i><h3>多元&包容</h3></div>
-                </div>
-            </div>
-        </div>
-    </div>
+  /* ===================== 配置区（部署时按需修改） ===================== */
+  /**
+   * 主站候选域名列表：探活时逐个尝试，命中第一个可达的即跳转。
+   * 与总后台 business_domain / 轮换域名保持一致；被封了就在这里增删。
+   * 只填域名（可带 https://，可不带），路径统一跳到 /home。
+   */
+  var TARGET_DOMAINS = [
+    "https://app.fcbhd.top",
+    "https://app.fcbhd.top"
+  ];
+  /** 主站探针图路径（主站 public/probe.png，1×1 透明图，仅用于探活）。 */
+  var PROBE_PATH = "/probe.png";
+  /** 单个域名探活超时（毫秒）：微信内被封通常直接 error，超时是网络兜底。 */
+  var PROBE_TIMEOUT_MS = 3500;
+  /* ================================================================== */
 
-    <div id="page5" class="page page5">
-        <div class="hero-bg" style="min-height: 100vh; padding-top: 80px;">
-            <section>
-                <div class="container">
-                    <div class="badge">零信任架构</div>
-                    <h1>坚固如磐的数据盔甲</h1>
-                    <button class="btn">安全白皮书 <i class="fas fa-file-pdf"></i></button>
-                </div>
-            </section>
-            <div class="container">
-                <div class="card-grid">
-                    <div class="card"><i class="fas fa-key"></i><h3>KMS 密钥管理</h3></div>
-                    <div class="card"><i class="fas fa-eye"></i><h3>实时威胁检测</h3></div>
-                    <div class="card"><i class="fas fa-check-double"></i><h3>隐私合规</h3></div>
-                </div>
-            </div>
-        </div>
-    </div>
+  var isWechat = /MicroMessenger/i.test(navigator.userAgent || "");
 
-    <footer>
-        <div class="footer-content">
-            <div>© 2025 NEXUS TECHNOLOGY</div>
-            <div><i class="fab fa-twitter"></i> <i class="fab fa-linkedin"></i> <i class="fab fa-github"></i> 隐私条款</div>
-        </div>
-        <div class="footer-copyright"> innovate without boundaries</div>
-    </footer>
+  /** 透传推广参数：原样保留本页 URL 的全部 query（site/invite 等）。 */
+  function currentQuery() {
+    var s = window.location.search || "";
+    return s && s.charAt(0) === "?" ? s.slice(1) : s;
+  }
 
-    <script>
-        // 页面切换逻辑
-        const pages = [
-            document.getElementById('page1'),
-            document.getElementById('page2'),
-            document.getElementById('page3'),
-            document.getElementById('page4'),
-            document.getElementById('page5')
-        ];
-        const navItems = document.querySelectorAll('.nav-links li');
+  /** 规范化域名 → https://host origin。 */
+  function normalizeOrigin(raw) {
+    var s = String(raw || "").trim().replace(/[\u200B-\u200D\uFEFF]/g, "").replace(/\/+$/, "");
+    if (!s) return "";
+    if (!/^https?:\/\//i.test(s)) s = "https://" + s;
+    try { return new URL(s + "/").origin; } catch (e) { return ""; }
+  }
 
-        function showPage(num) {
-            if (num < 1 || num > 5) return;
-            pages.forEach(p => p.classList.remove('active-page'));
-            pages[num - 1].classList.add('active-page');
-            navItems.forEach((item, idx) => {
-                if (parseInt(item.getAttribute('data-page')) === num) item.classList.add('active');
-                else item.classList.remove('active');
-            });
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
+  /** 拼目标落地地址：<origin>/home?<透传query>。 */
+  function buildTarget(origin) {
+    var q = currentQuery();
+    return origin.replace(/\/+$/, "") + "/home" + (q ? "?" + q : "");
+  }
 
-        function getRandomPage() { return Math.floor(Math.random() * 5) + 1; }
+  /** 域名池（规范化 + 去空 + 去重）。 */
+  var origins = (function () {
+    var seen = {}, out = [];
+    for (var i = 0; i < TARGET_DOMAINS.length; i++) {
+      var o = normalizeOrigin(TARGET_DOMAINS[i]);
+      if (o && !seen[o]) { seen[o] = 1; out.push(o); }
+    }
+    return out;
+  })();
 
-        navItems.forEach(item => {
-            item.addEventListener('click', () => {
-                const target = parseInt(item.getAttribute('data-page'));
-                if (!isNaN(target)) showPage(target);
-                if (window.innerWidth <= 900) document.getElementById('nav-links').classList.remove('show');
-            });
-        });
+  function go(origin) { window.location.replace(buildTarget(origin)); }
 
-        document.getElementById('mobile-menu').addEventListener('click', () => {
-            document.getElementById('nav-links').classList.toggle('show');
-        });
+  /**
+   * 探活单个域名：加载 <origin>/probe.png?cb=时间戳。
+   * onload=可达；onerror/超时=不可达（微信封域名时 WebView 会直接 error）。
+   */
+  function probe(origin) {
+    return new Promise(function (resolve) {
+      var done = false, img = new Image();
+      var timer = setTimeout(function () {
+        if (done) return; done = true; img.src = ""; resolve(false);
+      }, PROBE_TIMEOUT_MS);
+      img.onload = function () { if (done) return; done = true; clearTimeout(timer); resolve(true); };
+      img.onerror = function () { if (done) return; done = true; clearTimeout(timer); resolve(false); };
+      img.src = origin.replace(/\/+$/, "") + PROBE_PATH + "?cb=" + Date.now() + "_" + Math.random().toString(16).slice(2);
+    });
+  }
 
-        window.addEventListener('resize', () => {
-            if (window.innerWidth > 900) document.getElementById('nav-links').classList.remove('show');
-        });
+  /** 依次探活，返回第一个可达的 origin；全不可达返回 ""。 */
+  function firstReachable() {
+    var idx = 0;
+    return new Promise(function (resolve) {
+      (function next() {
+        if (idx >= origins.length) return resolve("");
+        var o = origins[idx++];
+        probe(o).then(function (ok) { ok ? resolve(o) : next(); });
+      })();
+    });
+  }
 
-        window.addEventListener('DOMContentLoaded', () => {
-            showPage(getRandomPage());
-        });
-    </script>
+  function showGuide() {
+    document.getElementById("loading").style.display = "none";
+    var g = document.getElementById("guide");
+    g.classList.add("show");
+    // 复制条：给用户一份「引导页自身」的链接（含推广参数），方便手动粘到浏览器
+    var self = window.location.href;
+    var inp = document.getElementById("copyUrl");
+    inp.value = self;
+    document.getElementById("copyBtn").onclick = function () {
+      try {
+        inp.removeAttribute("readonly"); inp.select();
+        inp.setSelectionRange(0, self.length);
+        document.execCommand("copy");
+        inp.setAttribute("readonly", "readonly");
+        this.textContent = "已复制";
+        var b = this; setTimeout(function () { b.textContent = "复制"; }, 1500);
+      } catch (e) {}
+    };
+  }
+
+  function showFallback(targetOrigin) {
+    document.getElementById("loading").style.display = "none";
+    var f = document.getElementById("fallback");
+    f.classList.add("show");
+    document.getElementById("enterBtn").onclick = function () {
+      go(targetOrigin || origins[0]);
+    };
+  }
+
+  /* ===================== 主流程 ===================== */
+  if (!origins.length) {
+    document.getElementById("loadingText").textContent = "未配置目标域名";
+    return;
+  }
+
+  if (!isWechat) {
+    /**
+     * 浏览器打开：主站在浏览器里不会被微信封 → 直接带参跳转，
+     * 落地后由主站 deviceId 自动登录（双模登录）。
+     * 仍先探活优选一个可达域名，全不可达再给手动按钮兜底。
+     */
+    firstReachable().then(function (origin) {
+      if (origin) go(origin);
+      else showFallback(origins[0]);
+    });
+    return;
+  }
+
+  /**
+   * 微信内打开：探活主站候选域名。
+   *  - 有可达域名 → 带参跳该域名 → 走微信授权登录（并自动避开被封域名）。
+   *  - 全部被封 → 弹浏览器引导遮罩。
+   */
+  firstReachable().then(function (origin) {
+    if (origin) go(origin);
+    else showGuide();
+  });
+})();
+</script>
 </body>
 </html>
